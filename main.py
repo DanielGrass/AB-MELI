@@ -50,7 +50,7 @@ def parse_experiments(df):
 async def root():
     return {"message": "API de AB Testing activa."}
 
-
+ 
 # Endpoint para consultar por experimento y día/hora
 @app.get("/experiment/{experiment_id}/result")
 async def get_experiment_results(experiment_id: str, day: str):
