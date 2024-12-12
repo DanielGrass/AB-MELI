@@ -2,11 +2,8 @@ from fastapi import FastAPI, HTTPException
 from pyspark.sql import SparkSession
 import boto3
 import os
-import pandas as pd
+from mangum import Mangum
 
-#####
-##### Desarrollado por: Daniel Grass
-#####
 # Configuración de FastAPI
 app = FastAPI()
 
@@ -106,3 +103,7 @@ async def get_experiment_results(experiment_id: str, day: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en el procesamiento: {e}")
+
+
+# Mangum para conectar FastAPI con API Gateway y Lambda
+handler = Mangum(app)
