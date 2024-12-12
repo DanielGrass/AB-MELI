@@ -5,10 +5,11 @@ phases:
     runtime-versions:
       python: 3.9
     commands:
-      - pip install -r requirements.txt -t .
+      - pip install -r requirements.txt -t lambda_function
   build:
     commands:
-      - zip -r lambda_function.zip *
+      # Cambiar al directorio lambda_function y empaquetar su contenido directamente en el nivel raíz del ZIP
+      - cd lambda_function && zip -r ../lambda_function.zip .
 artifacts:
   files:
     - lambda_function.zip
