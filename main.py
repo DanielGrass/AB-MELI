@@ -105,5 +105,5 @@ async def get_experiment_results(experiment_id: str, day: str):
         raise HTTPException(status_code=500, detail=f"Error en el procesamiento: {e}")
 
 
-# Mangum para conectar FastAPI con API Gateway y Lambda
+# Mangum para conectar FastAPI con API Gateway y Lambda 
 handler = Mangum(app)
