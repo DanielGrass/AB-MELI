@@ -44,19 +44,30 @@ df_invalid_timestamps = df.filter(to_timestamp("timestamp").isNull())
 print(f"Filas con timestamp inválido: {df_invalid_timestamps.count()}")
 df_invalid_timestamps.show()
 
-# 3. Verificar si hay IDs duplicados no esperados
-df_duplicates = df.groupBy("user_id", "timestamp").count().filter(col("count") > 1)
-print(f"Filas duplicadas encontradas: {df_duplicates.count()}")
-df_duplicates.show()
+# 3. Verificar si hay filas duplicadas y eliminarlas
+
+# Contar las filas duplicadas antes de eliminarlas
+df_duplicates_before = df.groupBy("user_id", "timestamp", "event_name", "item_id", "site", "experiments").count().filter(col("count") > 1)
+print(f"Filas duplicadas encontradas antes de eliminarlas: {df_duplicates_before.count()}")
+
+# Mostrar las filas duplicadas
+df_duplicates_before.show()
+
+df_cleaned = df.dropDuplicates(["user_id", "timestamp", "event_name", "item_id", "site", "experiments"])
+
+# Confirmar que los duplicados han sido eliminados
+df_duplicates_after = df_cleaned.groupBy("user_id", "timestamp", "event_name", "item_id", "site", "experiments").count().filter(col("count") > 1)
+print(f"Filas duplicadas restantes: {df_duplicates_after.count()}")
+df_duplicates_after.show()
 
 #4. Validar que experiments tenga el formato esperado
-df_valid_experiments = df.withColumn("is_valid_experiment", regexp_extract("experiments", r"(\w+=\w+)", 0) != "")
+df_valid_experiments = df_cleaned.withColumn("is_valid_experiment", regexp_extract("experiments", r"(\w+=\w+)", 0) != "")
 invalid_experiments = df_valid_experiments.filter(~col("is_valid_experiment"))
 print(f"Filas con 'experiments' inválidos: {invalid_experiments.count()}")
 invalid_experiments.show()
 
 # Guardar como Delta Table
-df.orderBy("user_id", "timestamp").write.format("delta").mode("overwrite").save(delta_table_bronze_path)
+df_cleaned.orderBy("user_id", "timestamp").write.format("delta").mode("overwrite").save(delta_table_bronze_path)
 print(f"Delta Table guardada en: {delta_table_bronze_path}")
 
 
