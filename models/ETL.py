@@ -1,6 +1,5 @@
-from pyspark.sql.types import IntegerType
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace, split, explode, col, when, lit, row_number, sum as F_sum, last, countDistinct, to_date
+from pyspark.sql.functions import regexp_replace, regexp_extract, split, explode, col, when, lit, row_number, sum as F_sum, last, countDistinct, to_date, to_timestamp
 from pyspark.sql import Window
 
 spark = SparkSession.builder \
@@ -31,9 +30,7 @@ delta_table_bronze_path = f"s3a://{bucket_name}/delta-table-bronze/"
 # Leer el archivo CSV desde S3
 df = spark.read.csv(s3_path, header=True, inferSchema=True)
 
-# Guardar como Delta Table
-df.orderBy("user_id", "timestamp").write.format("delta").mode("overwrite").save(delta_table_bronze_path)
-
+# 1. Detectar valores nulos o faltantes
 columns_to_check = ["user_id", "event_name", "timestamp", "experiments"]
 df_nulls = df.select(
     *[F_sum(col(column).isNull().cast("int")).alias(column) for column in columns_to_check]
@@ -42,7 +39,24 @@ df_nulls = df.select(
 print("Valores nulos por columna:")
 df_nulls.show()
 
+# 2. Validar el formato de los datos
+df_invalid_timestamps = df.filter(to_timestamp("timestamp").isNull())
+print(f"Filas con timestamp inválido: {df_invalid_timestamps.count()}")
+df_invalid_timestamps.show()
 
+# 3. Verificar si hay IDs duplicados no esperados
+df_duplicates = df.groupBy("user_id", "timestamp").count().filter(col("count") > 1)
+print(f"Filas duplicadas encontradas: {df_duplicates.count()}")
+df_duplicates.show()
+
+#4. Validar que experiments tenga el formato esperado
+df_valid_experiments = df.withColumn("is_valid_experiment", regexp_extract("experiments", r"(\w+=\w+)", 0) != "")
+invalid_experiments = df_valid_experiments.filter(~col("is_valid_experiment"))
+print(f"Filas con 'experiments' inválidos: {invalid_experiments.count()}")
+invalid_experiments.show()
+
+# Guardar como Delta Table
+df.orderBy("user_id", "timestamp").write.format("delta").mode("overwrite").save(delta_table_bronze_path)
 print(f"Delta Table guardada en: {delta_table_bronze_path}")
 
 
