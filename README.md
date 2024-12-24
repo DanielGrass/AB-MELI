@@ -41,7 +41,7 @@ Este proyecto integra herramientas como **Streamlit**, **FastAPI**, **PySpark** 
 2. **Nivel 2 (Analytics)**:
    - Cálculo de tasas de conversión y análisis estadísticos.
 3. **Nivel 3 (API)**:
-   - Exposición de resultados mediante FastAPI.
+   - Exposición de resultados mediante FastAPI. Repo: https://github.com/DanielGrass/fastapi-abtest-meli
 4. **Nivel 4 (Llamadas API)**:
    - Consulta de la API desde Streamlit.
 
