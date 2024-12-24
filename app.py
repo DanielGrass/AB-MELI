@@ -40,8 +40,8 @@ with st.sidebar:
     if st.button("Nivel 1: ETL"):
         st.session_state.selected_main = "Nivel 1: ETL"
 
-    if st.button("Deseable"):
-        st.session_state.selected_main = "Deseable"
+    if st.button("Nivel 2: Analytics"):
+        st.session_state.selected_main = "Nivel 2: Analytics"
 
     if st.button("Bonus"):
         st.session_state.selected_main = "Bonus"
@@ -175,7 +175,9 @@ if st.session_state.selected_main:
                 3. **Almacenamiento**:
                 - Los datos agregados se guardan como tablas Delta en las rutas:
                     - `delta_table_gold_aggregate_path` (métricas agregadas).
-                    - `delta_table_gold_tunnel_path` (túnel de eventos).""")
+                    - `delta_table_gold_tunnel_path` (túnel de eventos).
+                     
+                ### Archivo ETL: models/ETL.py""")
             # Cargar y mostrar datos de la tabla Gold
             gold_df = spark.read.format("delta").load(gold_aggregate_path)
             pd_gold_df = pd.DataFrame(gold_df.limit(1000).collect(), columns=[field.name for field in gold_df.schema.fields])
@@ -222,37 +224,26 @@ if st.session_state.selected_main:
                     # Mostrar la gráfica en Streamlit
                     st.plotly_chart(fig, use_container_width=True)
 
-    elif st.session_state.selected_main == "Deseable":
+    elif st.session_state.selected_main == "Nivel 2: Analytics":
         menu_options = st.radio(
             "Opciones de Deseable",
-            options=["Versionado de Código", "Feature Engineering", "Modelo Predictivo", "Mostrar Skills en Python", "Casos de Uso", "Métricas"],
+            options=["Correctitud datos", "Nivel de confianza", "Modelo Bayesiano - Binario"],
             horizontal=True
         )
 
         # Mostrar el contenido correspondiente
-        if menu_options == "Versionado de Código":
+        if menu_options == "Correctitud datos":
             st.header("Versionado de Código")
             st.write("Versionado de código con Git (incluso puede publicarse en tu cuenta personal de GitHub).")
 
-        elif menu_options == "Feature Engineering":
+        elif menu_options == "Nivel de confianza":
             st.header("Feature Engineering")
             st.write("Indicar y calcular posibles candidatos de features que podrían utilizarse tanto columnas originales y transformaciones.")
 
-        elif menu_options == "Modelo Predictivo":
+        elif menu_options == "Modelo Bayesiano - Binario":
             st.header("Modelo Predictivo")
             st.write("Realice un modelo predictivo.")
-
-        elif menu_options == "Mostrar Skills en Python":
-            st.header("Mostrar Skills en Python")
-            st.write("Teniendo buenas prácticas en la estructura del código y la documentación.")
-
-        elif menu_options == "Casos de Uso":
-            st.header("Casos de Uso")
-            st.write("Describir posibles casos de uso a tratar con este dataset que podrían agregar valor al negocio dado, indicando métodos, técnicas, y algoritmos por cada uno de ellos, así como justificando las decisiones tomadas.")
-
-        elif menu_options == "Métricas":
-            st.header("Métricas")
-            st.write("Definir y calcular las métricas que considere más relevantes para la problemática propuesta.")
+        
 
     elif st.session_state.selected_main == "Bonus":
         menu_options = st.radio(
