@@ -10,6 +10,7 @@ from numpyro.infer import MCMC, NUTS
 import jax
 import arviz as az
 import numpy as np
+import requests
 
 # Configuración de la sesión de Spark
 spark = SparkSession.builder \
@@ -80,8 +81,8 @@ with st.sidebar:
     if st.button("Nivel 3: API"):
         st.session_state.selected_main = "Nivel 3: API"
 
-    if st.button("Nivel 4: Ejemplos API"):
-        st.session_state.selected_main = "Nivel 4: Ejemplos API"
+    if st.button("Nivel 4: Llamadas API"):
+        st.session_state.selected_main = "Nivel 4: Llamadas API"
 
 # Menú horizontal a la derecha basado en la selección
 st.title("Data Science Technical Challenge - AB Test")
@@ -639,18 +640,171 @@ if st.session_state.selected_main:
                     else:
                         st.info(f"La variante {row['variant']} no tiene diferencias significativas respecto al control.")
 
-    elif st.session_state.selected_main == "Bonus":
-        menu_options = st.radio(
-            "Opciones de Bonus",
-            options=["Manejo de Environment de Desarrollo", "Identificar Nuevos Atributos"],
-            horizontal=True
-        )
+    elif st.session_state.selected_main == "Nivel 3: API":
+        st.title("Documentación de la API A/B Testing - FastAPI")
+        st.markdown("""
+        ## Descripción General
+        Esta API permite obtener resultados de experimentos A/B. Contiene información sobre experimentos, incluyendo el número de usuarios, variantes y compras realizadas.
 
-        # Mostrar el contenido correspondiente
-        if menu_options == "Manejo de Environment de Desarrollo":
-            st.header("Manejo de Environment de Desarrollo")
-            st.write("Manejo de environment de desarrollo mediante alguna tecnología (e.g. Docker, virtualenv, conda).")
+        La API está implementada con **FastAPI** y está desplegada en Heroku para acceso público.
 
-        elif menu_options == "Identificar Nuevos Atributos":
-            st.header("Identificar Nuevos Atributos")
-            st.write("Identificar nuevos atributos / tablas que podrían ser relevantes o necesarias para un mejor análisis.")
+        ## Nota Importante
+        En el parámetro `experiment_name`, es necesario reemplazar los caracteres `\` por `|` antes de realizar la solicitud.
+
+        ## Repositorio del Proyecto
+        El código fuente de esta API está disponible en el siguiente repositorio de GitHub:
+        [fastapi-abtest-meli](https://github.com/DanielGrass/fastapi-abtest-meli)
+
+        ## Estructura de la API
+        ### Endpoint: `/experiment/{experiment_name}/result`
+        Este endpoint permite consultar los resultados de un experimento en una fecha específica.
+
+        #### Parámetros:
+        1. **experiment_name (str)**: Nombre del experimento.  
+        2. **day (str)**: Fecha en formato `YYYY-MM-DD`. Este parámetro es obligatorio.
+
+        #### Respuesta Exitosa (200):
+        Si el experimento y la fecha existen en los datos, la API devuelve:
+        - **exp_name**: Nombre del experimento.
+        - **day**: Fecha del experimento.
+        - **number_of_participants**: Número total de participantes en el experimento.
+        - **winner**: Variante ganadora basada en el mayor número de compras.
+        - **variants**: Lista de variantes con el número de compras realizadas.
+
+        #### Respuesta de Error (404):
+        Si el experimento o la fecha no existen, se devuelve un mensaje indicando que no se encontraron datos.
+
+        ---
+
+        ## Ejemplo de Uso
+        ### URL Base
+        La API está desplegada en Heroku en la siguiente URL:
+        ```
+        https://abtest-fastapi-662c944e83d2.herokuapp.com
+        ```
+
+        ### Ejemplo 1: Resultado satisfactorio
+        **URL**:
+        ```
+        https://abtest-fastapi-662c944e83d2.herokuapp.com/experiment/qadb|sa-on-vip/result?day=2021-08-01
+        ```
+
+        **Respuesta**:
+        ```json
+        {
+            "results": {
+                "exp_name": "qadb|sa-on-vip",
+                "day": "2021-08-01",
+                "number_of_participants": 3500,
+                "winner": 1,
+                "variants": [
+                    {
+                        "id": 1,
+                        "number_of_purchases": 1500
+                    },
+                    {
+                        "id": 2,
+                        "number_of_purchases": 1200
+                    },
+                    {
+                        "id": 3,
+                        "number_of_purchases": 800
+                    }
+                ]
+            }
+        }
+        ```
+
+        ### Ejemplo 2: Fecha sin resultados
+        **URL**:
+        ```
+        https://abtest-fastapi-662c944e83d2.herokuapp.com/experiment/qadb|sa-on-vip/result?day=2024-08-01
+        ```
+
+        **Respuesta**:
+        ```json
+        {
+            "detail": "No data found for experiment 'qadb|sa-on-vip' on day '2024-08-01'"
+        }
+        ```
+
+        ---
+
+        ## Cómo probar la API localmente
+        Si deseas probar la API en tu entorno local:
+        1. Asegúrate de tener Python y las dependencias instaladas (`fastapi`, `pandas`, `uvicorn`).
+        2. Ejecuta el servidor:
+        ```bash
+        uvicorn main:app --reload
+        ```
+        3. Accede a la documentación interactiva en:
+        ```
+        http://127.0.0.1:8000/docs
+        ```
+
+        ---
+
+        ## Despliegue en Heroku
+        1. Usa `git` para versionar tu código.
+        2. Crea un archivo `Procfile` con el siguiente contenido:
+        ```
+        web: uvicorn main:app --host=0.0.0.0 --port=${PORT}
+        ```
+        3. Haz deploy con:
+        ```bash
+        git push heroku main
+        ```
+        ## Documentación propia de la API (https://abtest-fastapi-662c944e83d2.herokuapp.com/docs)
+        
+                    1. Dar click en Try out.
+                    2. Escribir el nombre del experimento (recuerda reemplazar \ por |).
+                    3. Escribir el dia a consultar.
+                    4. Dar click en Execute.
+                    5. Revisar responses.            
+        """)
+        st.image("images/fastapiim1.png", caption="Imagen 1", use_column_width=True)
+        st.image("images/fastapiim2.png", caption="Imagen 2", use_column_width=True)
+
+    elif st.session_state.selected_main == "Nivel 4: Llamadas API":
+        st.header("Nivel 4 - Llamadas API")
+
+        # Cargar datos Gold
+        pd_gold_df = load_gold_data()
+
+        # Filtrar experimentos únicos
+        experiments = pd_gold_df["experiment_name"].unique()
+        selected_experiment = st.selectbox("Seleccione un experimento", experiments)
+
+        if selected_experiment:
+            # Reemplazar \ por |
+            formatted_experiment = selected_experiment.replace("/", "|")
+
+            # Filtrar las fechas disponibles para el experimento
+            experiment_dates = pd_gold_df[pd_gold_df["experiment_name"] == selected_experiment]["day"].unique()
+            selected_date = st.selectbox("Seleccione una fecha", experiment_dates)
+
+            if selected_date:
+                # URL base de la API
+                base_url = "https://abtest-fastapi-662c944e83d2.herokuapp.com"
+                endpoint = f"/experiment/{formatted_experiment}/result?day={selected_date}"
+                full_url = base_url + endpoint
+
+                st.write(f"Consultando la API: {full_url}")
+
+                # Realizar la consulta a la API
+                try:
+                    response = requests.get(full_url)
+
+                    if response.status_code == 200:
+                        result = response.json()
+                        st.success("Consulta exitosa:")
+                        st.json(result)
+                    elif response.status_code == 404:
+                        st.warning("No se encontraron resultados para este experimento y fecha.")
+                        st.json(response.json())
+                    else:
+                        st.error(f"Error inesperado: {response.status_code}")
+                        st.json(response.json())
+
+                except Exception as e:
+                    st.error(f"Error al conectar con la API: {e}")

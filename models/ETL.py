@@ -169,6 +169,9 @@ df_aggregated.orderBy("day", "experiment_name").show(n=1000, truncate=False)
 
 # Guardar la tabla Gold - Agregado
 df_aggregated.write.format("delta").mode("overwrite").save(delta_table_gold_aggregate_path)
+csv_file_path = "df_aggregated.csv"
+df_aggregated_pandas = pd.DataFrame(df_aggregated.collect(), columns=[field.name for field in df_aggregated.schema.fields])
+df_aggregated_pandas.to_csv(csv_file_path, index=False)
 
 # Agrupar por día, evento, experimento y variante, y calcular métricas
 df_tunnel = df_delta_silver.groupBy("day", "event_name", "experiment_name", "variant_id").agg(
