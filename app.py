@@ -103,8 +103,9 @@ if st.session_state.selected_main:
 
                 1. **Nivel Bronze**: Limpieza inicial y validación de integridad.
                 2. **Nivel Silver**: Enriquecimiento de los datos con marcas específicas como `flag_purchase`.
-                3. **Nivel Gold**: Cálculo de métricas agregadas a nivel de experimento y variante.
-            
+                3. **Nivel Gold**: Cálculo de métricas agregadas a nivel de experimento y variante.""")
+            st.image("images/ETL.png")
+            st.markdown("""
                 ## Validaciones Realizadas
 
                 1. **Datos Nulos**:
