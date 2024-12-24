@@ -2,6 +2,14 @@ import streamlit as st
 from pyspark.sql import SparkSession
 import pandas as pd
 import plotly.express as px
+import scipy.stats as stats
+import plotly.graph_objects as go
+import numpyro
+import numpyro.distributions as dist
+from numpyro.infer import MCMC, NUTS
+import jax
+import arviz as az
+import numpy as np
 
 # Configuración de la sesión de Spark
 spark = SparkSession.builder \
@@ -30,6 +38,32 @@ silver_path = f"s3a://{bucket_name}/delta-table-silver-v1/"
 gold_aggregate_path = f"s3a://{bucket_name}/delta-table-gold-aggregate/"
 gold_tunnel_path = f"s3a://{bucket_name}/delta-table-gold-tunnel-v1/"
 
+@st.cache_data
+def load_bronze_data():
+    st.info("Cargando datos de Bronze...")
+    bronze_df = spark.read.format("delta").load(bronze_path)
+    return pd.DataFrame(bronze_df.limit(1000).collect(), columns=[field.name for field in bronze_df.schema.fields])
+
+@st.cache_data
+def load_silver_data():
+    st.info("Cargando datos de Silver...")
+    silver_df = spark.read.format("delta").load(silver_path)
+    return pd.DataFrame(silver_df.collect(), columns=[field.name for field in silver_df.schema.fields])
+
+@st.cache_data
+def load_gold_data():
+    st.info("Cargando datos de Gold Aggregate...")
+    gold_df = spark.read.format("delta").load(gold_aggregate_path)
+    return pd.DataFrame(gold_df.collect(), columns=[field.name for field in gold_df.schema.fields])
+
+@st.cache_data
+def load_tunnel_data():
+    st.info("Cargando datos de Gold Tunnel...")
+    df_tunnel = spark.read.format("delta").load(gold_tunnel_path)
+    return pd.DataFrame(df_tunnel.collect(), columns=[field.name for field in df_tunnel.schema.fields])
+
+
+
 # Barra lateral con el logo y menú
 with st.sidebar:
     st.image(logo_url, use_container_width=True)  # Muestra el logo desde la URL
@@ -43,8 +77,11 @@ with st.sidebar:
     if st.button("Nivel 2: Analytics"):
         st.session_state.selected_main = "Nivel 2: Analytics"
 
-    if st.button("Bonus"):
-        st.session_state.selected_main = "Bonus"
+    if st.button("Nivel 3: API"):
+        st.session_state.selected_main = "Nivel 3: API"
+
+    if st.button("Nivel 4: Ejemplos API"):
+        st.session_state.selected_main = "Nivel 4: Ejemplos API"
 
 # Menú horizontal a la derecha basado en la selección
 st.title("Data Science Technical Challenge - AB Test")
@@ -60,7 +97,7 @@ if st.session_state.selected_main:
         if menu_options == "Introducción":
             st.header("Nivel 1 - Transformación y Validación de Datos")
             st.markdown("""
-                ## Introducción
+                ## Introducción 
                 Este código se centra en la limpieza, transformación y validación de un conjunto de datos relacionado con pruebas A/B. Se divide en tres niveles principales:
 
                 1. **Nivel Bronze**: Limpieza inicial y validación de integridad.
@@ -91,7 +128,9 @@ if st.session_state.selected_main:
                 - Generación de gráficos para evaluar tendencias por experimento y variante.
 
                 3. **Automatización**:
-                - Creación de scripts de validación automática para cada etapa del pipeline.                """)
+                - Creación de scripts de validación automática para cada etapa del pipeline.  
+                        
+                ### Script del ETL: models/ETL.py              """)
         elif menu_options == "Bronze":
             st.header("Bronze - Limpieza Inicial")
             st.markdown("""
@@ -114,9 +153,9 @@ if st.session_state.selected_main:
                 3. **Almacenamiento**:
                 - Los datos limpios se guardan como una tabla Delta en la ruta `delta_table_bronze_path`.""")
             # Cargar y mostrar datos de la tabla Bronze
-            bronze_df = spark.read.format("delta").load(bronze_path)
-            pd_bronze_df = pd.DataFrame(bronze_df.limit(1000).collect(), columns=[field.name for field in bronze_df.schema.fields])
+            
             st.write("**Transformaciones principales:** Limpieza inicial de datos, eliminación de duplicados y validaciones básicas.")
+            pd_bronze_df = load_bronze_data()
             st.dataframe(pd_bronze_df)
 
         elif menu_options == "Silver":
@@ -138,9 +177,8 @@ if st.session_state.selected_main:
 
                 3. **Almacenamiento**:
                 - Los datos transformados se guardan como una tabla Delta en la ruta `delta_table_silver_path`.""")
-            # Cargar y mostrar datos de la tabla Silver
-            silver_df = spark.read.format("delta").load(silver_path)
-            pd_silver_df = pd.DataFrame(silver_df.collect(), columns=[field.name for field in silver_df.schema.fields])
+            # Cargar y mostrar datos de la tabla Silver   
+            pd_silver_df = load_silver_data()         
             st.markdown(" **Transformaciones principales:** Asignación de `flag_purchase` y separación de experimentos.")
             st.markdown(" **Usuario que tiene varias sesiones de compra y concreta algunas.** ")
             st.dataframe(pd_silver_df[pd_silver_df["user_id"]==687987])
@@ -177,17 +215,17 @@ if st.session_state.selected_main:
                     - `delta_table_gold_aggregate_path` (métricas agregadas).
                     - `delta_table_gold_tunnel_path` (túnel de eventos).
                      
-                ### Archivo ETL: models/ETL.py""")
-            # Cargar y mostrar datos de la tabla Gold
-            gold_df = spark.read.format("delta").load(gold_aggregate_path)
-            pd_gold_df = pd.DataFrame(gold_df.limit(1000).collect(), columns=[field.name for field in gold_df.schema.fields])
+                """)
+            
+            pd_gold_df = load_gold_data()         
+
+            # Cargar y mostrar datos de la tabla Gold            
             st.write("**Transformaciones principales:** Cálculo de usuarios únicos y compras realizadas.")
             st.dataframe(pd_gold_df)
 
-            # Leer los datos tunnel
-            df_tunnel = spark.read.format("delta").load(gold_tunnel_path)
-            pandas_tunnel_df = pd.DataFrame(df_tunnel.collect(), columns=[field.name for field in df_tunnel.schema.fields])
+            # Leer los datos tunnel           
             st.write("**Datos Tunnel:** Número de usuarios (únicos) que realizaron cada evento.")
+            pandas_tunnel_df = load_tunnel_data()
             st.dataframe(pandas_tunnel_df)
             # Filtrar experimentos únicos
             experiments = pandas_tunnel_df["experiment_name"].unique()
@@ -226,24 +264,380 @@ if st.session_state.selected_main:
 
     elif st.session_state.selected_main == "Nivel 2: Analytics":
         menu_options = st.radio(
-            "Opciones de Deseable",
-            options=["Correctitud datos", "Nivel de confianza", "Modelo Bayesiano - Binario"],
+            "Opciones de Analytics",
+            options=["Análisis de Confianza y Correctitud", "Análisis Estadístico de Pruebas A/B", "Modelo Bayesiano - Binario"],
             horizontal=True
         )
+        pd_gold_df = load_gold_data() 
 
+        variant_count = (
+            pd_gold_df.groupby("experiment_name")["variant_id"]
+            .nunique()
+            .reset_index()
+            .rename(columns={"variant_id": "variant_count"})
+            .sort_values(by="variant_count", ascending=False)
+        )
+        pd_gold_df["conversion_rate"] = pd_gold_df["purchases"] / pd_gold_df["users"]
+
+        # Filtrar experimentos con más de una variante
+        multi_variant_experiments = pd_gold_df[pd_gold_df["experiment_name"].isin(
+            variant_count[variant_count["variant_count"] > 1]["experiment_name"]
+        )]
         # Mostrar el contenido correspondiente
-        if menu_options == "Correctitud datos":
-            st.header("Versionado de Código")
-            st.write("Versionado de código con Git (incluso puede publicarse en tu cuenta personal de GitHub).")
+        if menu_options == "Análisis de Confianza y Correctitud":
+            st.title("Análisis de Confianza y Correctitud - AB Testing")
 
-        elif menu_options == "Nivel de confianza":
-            st.header("Feature Engineering")
-            st.write("Indicar y calcular posibles candidatos de features que podrían utilizarse tanto columnas originales y transformaciones.")
+            # Sección 1: Conteo de variantes por experimento
+            st.markdown("""
+            ### Conteo de Variantes por Experimento
+
+            En esta sección, se analiza cuántas variantes tiene cada experimento y se ordenan de mayor a menor. 
+            Los experimentos con una sola variante no pueden ser considerados válidos para pruebas A/B y serán marcados.
+            """)
+
+            # Identificar experimentos con solo una variante
+            single_variant_experiments = variant_count[variant_count["variant_count"] == 1]
+
+            st.dataframe(variant_count, use_container_width=True)
+
+            if not single_variant_experiments.empty:
+                st.warning(f"Se encontraron {len(single_variant_experiments)} experimentos con solo una variante. Estos no son válidos para pruebas A/B.")
+                st.dataframe(single_variant_experiments)
+
+            
+            # Sección 2: Tasa de Conversión
+            st.markdown("""
+            ### Tasa de Conversión
+
+            Calculamos la tasa de conversión por variante dentro de cada experimento, definida como el número de compras dividido entre el número total de usuarios.
+            Esto nos permitirá identificar variantes que tengan un mejor desempeño.
+            """)
+
+            
+            st.dataframe(multi_variant_experiments.sort_values(by="conversion_rate", ascending=False), use_container_width=True)
+
+            selected_experiment = st.selectbox(
+                "Seleccione un experimento:",
+                multi_variant_experiments["experiment_name"].unique()
+            )
+
+            if selected_experiment:
+                exp_data = multi_variant_experiments[multi_variant_experiments["experiment_name"] == selected_experiment]
+                variants = exp_data["variant_id"].unique()
+
+                # Crear figura para todas las variantes del experimento seleccionado
+                fig = go.Figure()
+
+                for variant in variants:
+                    variant_data = exp_data[exp_data["variant_id"] == variant]
+
+                    # Agregar barras
+                    fig.add_trace(
+                        go.Bar(
+                            x=variant_data["day"],
+                            y=variant_data["conversion_rate"],
+                            name=f"Variante {variant}",
+                            text=variant_data["conversion_rate"].round(2),
+                            textposition="auto"
+                        )
+                    )
+
+                    # Agregar línea de tendencia
+                    fig.add_trace(
+                        go.Scatter(
+                            x=variant_data["day"],
+                            y=variant_data["conversion_rate"],
+                            mode="lines+markers",
+                            name=f"Tendencia Variante {variant}",
+                            line=dict(dash="dot")
+                        )
+                    )
+
+                # Ajustar diseño
+                fig.update_layout(
+                    title_text=f"Tasa de Conversión por Día - {selected_experiment}",
+                    barmode="group",
+                    xaxis_title="Día",
+                    yaxis_title="Tasa de Conversión",
+                    height=600,
+                    legend_title="Variante"
+                )
+
+                # Mostrar gráfico
+                st.plotly_chart(fig, use_container_width=True)
+
+            st.markdown("""           
+            Este análisis proporciona una visualización detallada de las tasas de conversión por día para las variantes de un experimento seleccionado.
+            Esto permite identificar tendencias y patrones de comportamiento a lo largo del tiempo.
+            """)
+        elif menu_options == "Análisis Estadístico de Pruebas A/B":
+            st.title("Análisis Estadístico de Pruebas A/B")
+
+            # Inicializar listas para almacenar resultados
+            chi2_results = []
+
+            # Explicación de Chi-cuadrado con Latex
+            latex_chi2 = r'''
+            ## Prueba de Chi-cuadrado
+
+            ### Hipótesis:
+            - **Hipótesis nula (H₀):** No hay diferencia significativa en las tasas de conversión entre las variantes para un día específico.
+            - **Hipótesis alternativa (H₁):** Existe una diferencia significativa en las tasas de conversión entre las variantes para ese día.
+
+            ### Fórmula del estadístico Chi-cuadrado:
+            $$
+            \chi^2 = \sum \frac{(O_{ij} - E_{ij})^2}{E_{ij}}
+            $$
+            Donde:
+            - $O_{ij}$ es la frecuencia observada en la celda $i,j$.
+            - $E_{ij}$ es la frecuencia esperada en la celda $i,j$:
+            $$
+            E_{ij} = \frac{(\text{Total fila } i) \times (\text{Total columna } j)}{\text{Total general}}
+            $$
+
+            ### Consideraciones
+            La prueba de Chi-cuadrado requiere que todas las celdas de la tabla de frecuencias esperadas tengan valores mayores a cero. Si alguna celda tiene un valor igual a cero, no es posible realizar la prueba, ya que esto resultaría en una división por cero en el cálculo del estadístico.
+            ### Ejemplo de Tabla de Contingencia
+            Supongamos que tenemos un experimento con dos variantes:
+
+            | Variante | Compras | No Compras | Total |
+            |----------|---------|------------|-------|
+            | A        | 30      | 70         | 100   |
+            | B        | 20      | 80         | 100   |
+            | Total    | 50      | 150        | 200   |
+
+            En este caso, calculamos las frecuencias esperadas para cada celda utilizando la fórmula:
+            $$
+            E_{ij} = \frac{(\text{Total fila } i) \times (\text{Total columna } j)}{\text{Total general}}
+            $$
+            
+            '''
+
+            st.write(latex_chi2)
+
+            # Iterar sobre cada experimento
+            for experiment in multi_variant_experiments['experiment_name'].unique():
+                exp_data = multi_variant_experiments[multi_variant_experiments['experiment_name'] == experiment]
+
+                # Iterar sobre cada día
+                for day in exp_data['day'].unique():
+                    day_data = exp_data[exp_data['day'] == day]
+                    variants = day_data['variant_id'].unique()
+
+                    # Preparar datos para la prueba de Chi-cuadrado
+                    contingency_table = []
+                    for variant in variants:
+                        variant_data = day_data[day_data['variant_id'] == variant]
+                        conversions = variant_data['purchases'].sum()
+                        non_conversions = variant_data['users'].sum() - conversions
+                        contingency_table.append([conversions, non_conversions])
+
+                    # Verificar que no haya celdas vacías en las frecuencias observadas
+                    contingency_table = pd.DataFrame(contingency_table)
+                    if (contingency_table.sum(axis=1) == 0).any() or (contingency_table.sum(axis=0) == 0).any():
+                        st.warning(f"Datos insuficientes para realizar la prueba de Chi-cuadrado en el experimento {experiment} el día {day}.")
+                        continue
+
+                    # Realizar prueba de Chi-cuadrado
+                    try:
+                        chi2, p_chi2, _, _ = stats.chi2_contingency(contingency_table)
+                        conclusion = "Se acepta H₀: No hay diferencias significativas." if p_chi2 >= 0.05 else "Se rechaza H₀: Hay diferencias significativas."
+                        description = (
+                            "Las variantes parecen comportarse de manera similar." if p_chi2 >= 0.05 else
+                            "Hay evidencia de que al menos una variante tiene un comportamiento diferente."
+                        )
+                        chi2_results.append({
+                            'day': day,
+                            'experiment_name': experiment,
+                            'chi2_statistic': chi2,
+                            'p_value': p_chi2,
+                            'conclusion': conclusion,
+                            'description': description
+                        })
+                    except ValueError as e:
+                        st.error(f"Error al calcular Chi-cuadrado para el experimento {experiment} en el día {day}: {e}")
+
+            # Mostrar resultados de Chi-cuadrado
+            chi2_df = pd.DataFrame(chi2_results).sort_values(by=['day', 'experiment_name'])
+            st.markdown("""
+            #### Resultados de la Prueba de Chi-cuadrado
+
+            Los resultados muestran el valor del estadístico Chi-cuadrado, el valor p, la conclusión de la prueba y una descripción interpretativa para cada día y experimento. Si \( p < 0.05 \), rechazamos la hipótesis nula y concluimos que existen diferencias significativas entre las variantes.
+            """)
+            st.dataframe(chi2_df)
+
 
         elif menu_options == "Modelo Bayesiano - Binario":
-            st.header("Modelo Predictivo")
-            st.write("Realice un modelo predictivo.")
-        
+            # Selección de experimento
+            selected_experiment = st.selectbox("Selecciona un experimento para realizar el muestreo bayesiano:", multi_variant_experiments['experiment_name'].unique())
+
+            # Función de muestreo bayesiano con NumPyro
+            def binary_model(data):
+                # Preparar datos específicos para el modelo
+                ob_var = data['purchases'].values
+                n_var = data['users'].values
+                output_rule = data['variant_id'].astype('category').cat.codes.values
+                n_rules = len(data['variant_id'].unique())
+
+                # Modelo NumPyro
+                def ab_test_model(ob_var, n_var, output_rule):
+                    alpha = numpyro.sample('alpha', dist.Exponential(1 / 3))
+                    beta = numpyro.sample('beta', dist.Exponential(1 / 3))
+
+                    # Distribución Beta para probabilidades de éxito
+                    thetas = numpyro.sample('binary', dist.Beta(alpha, beta), sample_shape=(n_rules,))
+
+                    # Observaciones utilizando una distribución Binomial
+                    with numpyro.plate('observations', size=len(ob_var)):
+                        numpyro.sample('obs', dist.Binomial(n_var, probs=thetas[output_rule]), obs=ob_var)
+
+                # Configuración de MCMC
+                nuts_kernel = NUTS(ab_test_model)
+                mcmc = MCMC(nuts_kernel, num_warmup=500, num_samples=5000)
+
+                # Ejecución de MCMC
+                mcmc.run(jax.random.PRNGKey(0), ob_var, n_var, output_rule)
+
+                # Conversión de resultados a formato InferenceData
+                inference_data = az.from_numpyro(mcmc)
+                posterior_samples = inference_data.posterior
+
+                # Preparar los resultados
+                def parse_results(inference_data, posterior_samples, key, identifiers, rules):
+                    # Obtiene el resumen estadístico de las muestras posteriores para la variable de interés.
+                    results = az.summary(inference_data, var_names=[key], hdi_prob=0.95, round_to=10)
+
+                    results["ab_test_rule_name"] = rules
+
+                    for k, v in identifiers.items():
+                        # Añade los valores de identificación al DataFrame de resultados.
+                        results[k] = v
+
+                    results["class"] = key  # Añade al DataFrame final el tipo de variable Binary
+
+                    # Añadir las trazas
+                    thetas_samples = posterior_samples[key].values
+                    trcs = np.split(thetas_samples, len(rules), axis=2)
+                    trcs = [x.flatten() for x in trcs]
+                    results["trace_lst"] = trcs
+
+                    return results, inference_data
+
+                identifiers = {"experiment_name": selected_experiment}
+                rules = data['variant_id'].unique()
+                results = parse_results(inference_data, posterior_samples, 'binary', identifiers, rules)
+
+                return results
+
+            if st.button("Realizar Muestreo Bayesiano"):
+                experiment_data = pd_gold_df[pd_gold_df['experiment_name'] == selected_experiment]
+                results, inference_data = binary_model(experiment_data)
+
+                # Mostrar resultados resumidos
+                st.markdown("### Resumen de los Resultados Posteriores")
+                st.dataframe(results)
+
+                 # Convertir trace_lst para uso en plot_posterior
+                trace_data = {rule: results["trace_lst"][idx] for idx, rule in enumerate(results["ab_test_rule_name"])}
+
+                # Crear un dataset compatible con ArviZ
+                trace_ds = az.from_dict(posterior=trace_data)
+
+                # Mostrar histogramas juntos
+                st.markdown("### Histogramas Posteriores para las Variantes")
+                az.plot_posterior(trace_ds)
+                st.pyplot()
+                # Grupo de control: primera variante en la fila
+                control_trace = results['trace_lst'][0]
+                control_name = results['ab_test_rule_name'][0]
+
+                # Comparar todas las variantes con el grupo de control
+                comparisons = []
+                for idx, trace in enumerate(results['trace_lst']):
+                    if idx == 0:  # Saltar el grupo de control
+                        continue
+                    variant_name = results['ab_test_rule_name'][idx]
+
+                    # Calcular los intervalos de confianza
+                    control_mean = np.mean(control_trace)
+                    control_hdi = az.hdi(control_trace, hdi_prob=0.95)
+
+                    test_mean = np.mean(trace)
+                    test_hdi = az.hdi(trace, hdi_prob=0.95)
+
+                    # Verificar si hay intersección entre los intervalos de confianza
+                    significant = not (
+                        (control_hdi[1] >= test_hdi[0]) and (control_hdi[0] <= test_hdi[1])
+                    )
+
+                    comparisons.append({
+                        "variant": variant_name,
+                        "control_mean": control_mean,
+                        "control_hdi": control_hdi,
+                        "test_mean": test_mean,
+                        "test_hdi": test_hdi,
+                        "significant": significant
+                    })
+
+                # Crear DataFrame para la comparación
+                comparison_df = pd.DataFrame(comparisons)
+
+                # Mostrar resultados
+                st.markdown("### Comparaciones con el Grupo de Control")
+                st.dataframe(comparison_df)
+
+                # Graficar distribuciones y marcar los intervalos
+                fig = go.Figure()
+
+                # Graficar grupo de control
+                fig.add_trace(go.Scatter(
+                    x=control_trace,
+                    y=[0] * len(control_trace),
+                    mode='markers',
+                    name=f"Control ({control_name})",
+                    marker=dict(color='red')
+                ))
+
+                for idx, row in comparison_df.iterrows():
+                    variant_trace = results['trace_lst'][idx + 1]
+                    variant_name = row["variant"]
+
+                    # Agregar variante
+                    fig.add_trace(go.Scatter(
+                        x=variant_trace,
+                        y=[0] * len(variant_trace),
+                        mode='markers',
+                        name=f"Variante {variant_name}",
+                        marker=dict(color='blue')
+                    ))
+
+                    # Agregar intervalo de confianza
+                    fig.add_shape(type="line",
+                                x0=row["test_hdi"][0], y0=0, x1=row["test_hdi"][1], y1=0,
+                                line=dict(color="blue", width=3))
+
+                    fig.add_shape(type="line",
+                                x0=row["control_hdi"][0], y0=0, x1=row["control_hdi"][1], y1=0,
+                                line=dict(color="red", width=3))
+
+                fig.update_layout(
+                    title="Comparación de Intervalos de Confianza",
+                    xaxis_title="Valores Simulados",
+                    yaxis_title="Densidad",
+                    legend_title="Grupos",
+                    template="plotly_white"
+                )
+
+                # Mostrar la gráfica
+                st.plotly_chart(fig)
+
+                # Mostrar conclusiones sobre significancia
+                st.markdown("### Conclusiones de la Comparación")
+                for idx, row in comparison_df.iterrows():
+                    if row["significant"]:
+                        st.success(f"La variante {row['variant']} tiene diferencias significativas respecto al control.")
+                    else:
+                        st.info(f"La variante {row['variant']} no tiene diferencias significativas respecto al control.")
 
     elif st.session_state.selected_main == "Bonus":
         menu_options = st.radio(
