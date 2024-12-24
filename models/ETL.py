@@ -1,6 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import regexp_replace, regexp_extract, split, explode, col, when, lit, row_number, sum as F_sum, last, countDistinct, to_date, to_timestamp
 from pyspark.sql import Window
+import pandas as pd
 
 spark = SparkSession.builder \
     .appName("DeltaTableTest") \
@@ -11,6 +12,9 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain") \
     .config("spark.local.dir", "C:/tmp/spark") \
     .getOrCreate()
+
+# Activar Arrow
+spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 
 # Configuración de logs para evitar mensajes excesivos
 spark.sparkContext.setLogLevel("ERROR")
@@ -145,7 +149,7 @@ print(f"Delta Table guardada en: {delta_table_silver_path}")
 ########################################
 
 delta_table_gold_aggregate_path = f"s3a://{bucket_name}/delta-table-gold-aggregate/"
-delta_table_gold_tunnel_path = f"s3a://{bucket_name}/delta-table-gold-tunnel/"
+delta_table_gold_tunnel_path = f"s3a://{bucket_name}/delta-table-gold-tunnel-v1/"
 
 # Cargar la tabla Delta Bronze
 df_delta_silver = spark.read.format("delta").load(delta_table_silver_path)
@@ -169,6 +173,7 @@ df_aggregated.write.format("delta").mode("overwrite").save(delta_table_gold_aggr
 # Agrupar por día, evento, experimento y variante, y calcular métricas
 df_tunnel = df_delta_silver.groupBy("day", "event_name", "experiment_name", "variant_id").agg(
     countDistinct("user_id").alias("users"),  # Número de usuarios distintos
+    countDistinct(when(col("flag_purchase") == True, col("user_id"))).alias("purchases")  # Número de usuarios distintos con compra
 ).orderBy("day", "experiment_name", "event_name")
 
 # Mostrar resultados
