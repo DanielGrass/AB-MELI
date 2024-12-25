@@ -11,6 +11,12 @@ import jax
 import arviz as az
 import numpy as np
 import requests
+import os
+
+# Configurar credenciales de AWS desde variables de entorno
+os.environ["AWS_ACCESS_KEY_ID"] = os.getenv("AWS_ACCESS_KEY_ID")
+os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY")
+os.environ["AWS_DEFAULT_REGION"] = os.getenv("AWS_DEFAULT_REGION")
 
 # Configuración de la sesión de Spark
 spark = SparkSession.builder \
