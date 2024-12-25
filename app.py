@@ -49,13 +49,13 @@ gold_tunnel_path = f"s3://{bucket_name}/delta-table-gold-tunnel-v1/"
 def load_bronze_data():
     st.info("Cargando datos de Bronze...")
     df = pd.read_parquet(bronze_path, storage_options=storage_options)
-    return df.head(10000)
+    return df.head(1000)
 
 @st.cache_data
 def load_silver_data():
     st.info("Cargando datos de Silver...")
     df = pd.read_parquet(silver_path, storage_options=storage_options)
-    return df.head(10000)
+    return df.head(1000)
 
 @st.cache_data
 def load_gold_data():
