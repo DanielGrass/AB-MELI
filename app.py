@@ -1,5 +1,4 @@
 import streamlit as st
-from pyspark.sql import SparkSession
 import pandas as pd
 import plotly.express as px
 import scipy.stats as stats
@@ -11,22 +10,22 @@ import jax
 import arviz as az
 import numpy as np
 import requests
+from deltalake import DeltaTable
 import os
+from dotenv import load_dotenv
 
-# Configurar credenciales de AWS desde variables de entorno
-os.environ["AWS_ACCESS_KEY_ID"] = os.getenv("AWS_ACCESS_KEY_ID")
-os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY")
-os.environ["AWS_DEFAULT_REGION"] = os.getenv("AWS_DEFAULT_REGION")
+# Cargar variables de entorno desde .env
+load_dotenv()
 
-# Configuración de la sesión de Spark
-spark = SparkSession.builder \
-    .appName("DeltaTableTest") \
-    .config("spark.jars.packages", "io.delta:delta-core_2.12:2.4.0,org.apache.hadoop:hadoop-aws:3.3.4") \
-    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
-    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-    .config("spark.hadoop.fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain") \
-    .getOrCreate()
+# Configurar opciones de almacenamiento usando las variables de entorno
+storage_options = {
+    "key": os.getenv("AWS_ACCESS_KEY_ID"),
+    "secret": os.getenv("AWS_SECRET_ACCESS_KEY"),
+    "client_kwargs": {
+        "region_name": os.getenv("AWS_DEFAULT_REGION")
+    }
+}
+
 
 # Configuración de la página
 st.set_page_config(page_title="AB test - MELI", page_icon=":bar_chart:", layout="wide")
@@ -40,35 +39,35 @@ if 'selected_main' not in st.session_state:
 
 # Rutas a las tablas Delta en S3
 bucket_name = "abtest-meli"
-bronze_path = f"s3a://{bucket_name}/delta-table-bronze/"
-silver_path = f"s3a://{bucket_name}/delta-table-silver-v1/"
-gold_aggregate_path = f"s3a://{bucket_name}/delta-table-gold-aggregate/"
-gold_tunnel_path = f"s3a://{bucket_name}/delta-table-gold-tunnel-v1/"
+bronze_path = f"s3://{bucket_name}/delta-table-bronze/"
+silver_path = f"s3://{bucket_name}/delta-table-silver-v1/"
+gold_aggregate_path = f"s3://{bucket_name}/delta-table-gold-aggregate/"
+gold_tunnel_path = f"s3://{bucket_name}/delta-table-gold-tunnel-v1/"
 
+# Función para cargar datos con deltalake
 @st.cache_data
 def load_bronze_data():
     st.info("Cargando datos de Bronze...")
-    bronze_df = spark.read.format("delta").load(bronze_path)
-    return pd.DataFrame(bronze_df.limit(1000).collect(), columns=[field.name for field in bronze_df.schema.fields])
+    df = pd.read_parquet(bronze_path, storage_options=storage_options)
+    return df.head(10000)
 
 @st.cache_data
 def load_silver_data():
     st.info("Cargando datos de Silver...")
-    silver_df = spark.read.format("delta").load(silver_path)
-    return pd.DataFrame(silver_df.collect(), columns=[field.name for field in silver_df.schema.fields])
+    df = pd.read_parquet(silver_path, storage_options=storage_options)
+    return df.head(10000)
 
 @st.cache_data
 def load_gold_data():
     st.info("Cargando datos de Gold Aggregate...")
-    gold_df = spark.read.format("delta").load(gold_aggregate_path)
-    return pd.DataFrame(gold_df.collect(), columns=[field.name for field in gold_df.schema.fields])
+    df = pd.read_parquet(gold_aggregate_path, storage_options=storage_options)
+    return df
 
 @st.cache_data
 def load_tunnel_data():
     st.info("Cargando datos de Gold Tunnel...")
-    df_tunnel = spark.read.format("delta").load(gold_tunnel_path)
-    return pd.DataFrame(df_tunnel.collect(), columns=[field.name for field in df_tunnel.schema.fields])
-
+    df = pd.read_parquet(gold_tunnel_path, storage_options=storage_options)
+    return df
 
 
 # Barra lateral con el logo y menú
