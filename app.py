@@ -129,16 +129,15 @@ if st.session_state.selected_main:
                 ## Posibles Siguientes Pasos:
 
                 1. **Validaciones Adicionales**:
-                - Análisis de outliers en las marcas de tiempo.
-                - Validación de consistencia entre `event_name` y otros campos (e.g., `item_id`).
+                    - Validación de consistencia entre `event_name` y otros campos (e.g., `item_id`).
 
                 2. **Análisis Exploratorio**:
                 - Generación de gráficos para evaluar tendencias por experimento y variante.
-
-                3. **Automatización**:
-                - Creación de scripts de validación automática para cada etapa del pipeline.  
                         
-                ### Script del ETL: models/ETL.py              """)
+                ### El script usado para el ETL se encuentra en este proyecto en: models/ETL.py""")
+            st.image("images/ETLProceso1.png")
+            st.image("images/ETLProceso2.png")
+                
         elif menu_options == "Bronze":
             st.header("Bronze - Limpieza Inicial")
             st.markdown("""
