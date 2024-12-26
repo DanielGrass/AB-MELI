@@ -30,14 +30,15 @@ El pipeline ETL procesa los datos de las pruebas A/B y los transforma a través 
   - Construcción de un túnel de eventos para el análisis de las etapas del funnel.
   - Almacenamiento en formato Delta Lake en el bucket S3.
 
-Estas transformaciones se realizan con **PySpark**, lo que garantiza un procesamiento eficiente para grandes volúmenes de datos.
+Estas transformaciones se realizan con **PySpark**, lo que garantiza un procesamiento eficiente para grandes volúmenes de datos. Este modulo se alamceno inicialmente en el modulo de frontend (este repo).
 
 ### **1.2 FastAPI**
 
 Una API RESTful, implementada con **FastAPI**, expone los datos procesados en la capa **Gold** para ser consumidos por aplicaciones externas o el frontend.
 - Los endpoints permiten obtener métricas como la variante ganadora de un experimento, usuarios por variante, y eventos en el túnel.
 - Está desplegada en Heroku y documentada con Swagger UI para facilitar el consumo.
-
+[Github](https://github.com/DanielGrass/fastapi-abtest-meli) 
+[API en Heroku](https://abtest-fastapi-662c944e83d2.herokuapp.com/docs)
 ---
 
 ## **2. Frontend**
@@ -154,23 +155,6 @@ Para ejecutar este proyecto, asegúrate de tener instalados los siguientes softw
 ### Errores Potenciales:
 - Datos faltantes o mal formateados pueden afectar los análisis.
 - Modelos estadísticos dependen de la calidad de los datos.
-
----
-
-## Escalabilidad y tradeoffs futuros
-
-1. **Limitaciones Actuales**:
-   - Uso de pandas y consultas directas en tablas Delta no son ideales para grandes volúmenes.
-   - Spark puede requerir optimización adicional.
-
-2. **Estrategias de Escalabilidad**:
-   - Bases de datos distribuidas como Redshift o Snowflake.
-   - Reemplazar pandas con Dask o PySpark.
-   - Escalar la API con AWS Lambda o contenedores.
-
-3. **Tradeoffs**:
-   - Escalar puede aumentar costos operativos.
-   - Migrar a tecnologías distribuidas requiere más recursos.
 
 ---
 

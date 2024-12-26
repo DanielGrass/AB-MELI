@@ -128,8 +128,8 @@ if st.session_state.selected_main:
             """)
             st.image("images/ETLProceso1.png")
             st.image("images/ETLProceso2.png")
-            st.markdown("""    ## Posibles Siguientes Pasos:
-
+            st.markdown("""    
+                ## Posibles Siguientes Pasos:
                 1. **Validaciones Adicionales**:
                     - Validación de consistencia entre `event_name` y otros campos (e.g., `item_id`).
 
@@ -621,8 +621,59 @@ if st.session_state.selected_main:
 
 
         elif menu_options == "Modelo Bayesiano - Binario":
+            st.markdown("""
+                        # Modelo Bayesiano - Análisis Binario
+                        ## Descripción
+                        El modelo bayesiano implementado tiene como objetivo analizar el desempeño de variantes en un experimento A/B utilizando distribuciones Beta y Binomiales para modelar probabilidades de éxito en base a datos observados. Este enfoque nos permite calcular intervalos de confianza, analizar significancia estadística entre grupos y obtener trazas posteriores para una comparación visual.
+
+                        ---
+
+                        ## Estructura del Modelo
+                        El modelo sigue la siguiente estructura:
+
+                        1. **Prior:**  
+                        - `alpha` y `beta` siguen una distribución exponencial con parámetro \(1/3\).  
+                        - **Interpretación:** Priorizamos incertidumbre inicial antes de observar datos.
+
+                        2. **Likelihood:**  
+                        - La probabilidad de éxito (\(thetas\)) se modela con una distribución Beta utilizando \(alpha\) y \(beta\).  
+                        - Los datos observados (\(y\)) se modelan con una distribución Binomial basada en \(thetas\).
+
+                        3. **Posterior:**  
+                        - A partir de las distribuciones anteriores, obtenemos la distribución posterior que nos proporciona información sobre los valores más probables de \(thetas\) y sus intervalos de confianza.
+
+                        **Diagrama del modelo bayesiano**  """)
+            st.image("images/Bayesiano.png")
+            st.markdown("""
+                        ---
+
+                        ## Pasos Principales
+
+                        1. **Selección de Experimento**  
+                        El usuario selecciona un experimento de interés desde una lista desplegable. El análisis se aplica únicamente al subconjunto de datos correspondiente al experimento seleccionado.
+
+                        2. **Configuración del Modelo**  
+                        - Observaciones (\(ob\\_var\)): Datos de compras realizadas.
+                        - Número de usuarios (\(n\\_var\)): Cantidad de participantes en cada variante.
+                        - Reglas de variantes (\(output\\_rule\)): Identificadores únicos para las variantes.
+
+                        3. **Muestreo Bayesiano con NumPyro**  
+                        Se utiliza un kernel NUTS (No-U-Turn Sampler) para realizar un muestreo eficiente y generar la distribución posterior.
+
+                        ---
+
+                        ## Resultados Posteriores
+                        Una vez generado el modelo, los resultados incluyen:
+                        1. **Intervalos de Confianza (HDI):**  
+                        Utilizamos el 95% del intervalo de densidad más alta para determinar si las variantes tienen intersección en sus intervalos de confianza.
+                        2. **Significancia Estadística:**  
+                        Se evalúa si las variantes tienen diferencias significativas respecto al grupo de control.
+
+                        ## Selecciona un experimento para realizar el muestreo bayesiano:
+                        """)
+
             # Selección de experimento
-            selected_experiment = st.selectbox("Selecciona un experimento para realizar el muestreo bayesiano:", multi_variant_experiments['experiment_name'].unique())
+            selected_experiment = st.selectbox("Experimentos:", multi_variant_experiments['experiment_name'].unique())
 
             # Función de muestreo bayesiano con NumPyro
             def binary_model(data):
@@ -736,7 +787,11 @@ if st.session_state.selected_main:
                 comparison_df = pd.DataFrame(comparisons)
 
                 # Mostrar resultados
-                st.markdown("### Comparaciones con el Grupo de Control")
+                                   
+                st.image("images/bayesiano1.png")
+                st.image("images/bayesiano2.png")
+                
+                
                 st.dataframe(comparison_df)
 
                 # Graficar distribuciones y marcar los intervalos
@@ -791,7 +846,20 @@ if st.session_state.selected_main:
                         st.success(f"La variante {row['variant']} tiene diferencias significativas respecto al control.")
                     else:
                         st.info(f"La variante {row['variant']} no tiene diferencias significativas respecto al control.")
+                st.markdown("""
 
+                                Se grafican las trazas de las variantes con sus intervalos de confianza:
+                                - Color rojo: Grupo de control.
+                                - Color azul: Variantes de prueba.
+                                - Las líneas representan los intervalos de confianza para cada grupo.
+
+                                ---
+
+                                ## Conclusiones
+                                1. Las variantes con intervalos de confianza que no se cruzan con el grupo de control muestran diferencias estadísticamente significativas.
+                                2. La visualización de las distribuciones posteriores permite identificar claramente las diferencias entre variantes.
+
+                            """)
     elif st.session_state.selected_main == "Nivel 3: API":
         st.title("Documentación de la API A/B Testing - FastAPI")
         st.markdown("""
