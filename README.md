@@ -225,6 +225,25 @@ Para ejecutar este proyecto, asegúrate de tener instalados los siguientes softw
    ```
 
 ---
+# Consideraciones y Tradeoffs para Escalar la Solución
+
+## **1. Escalabilidad del Sistema**
+  A medida que se amplíe el uso del sistema, el volumen de datos procesados en las tablas **Bronze**, **Silver** y **Gold** crecerá significativamente. Esto requerirá un diseño robusto para manejar grandes volúmenes de datos.
+  Las consultas a las tablas Deltalake pueden volverse más lentas al aumentar el tamaño de los datasets. Se necesita indexación y particionamiento eficiente.
+### **Posibles soluciones:**  
+  
+- Implementar **particionamiento** en las tablas (por ejemplo, por fechas o experimentos) para mejorar las consultas. Esto puede aumentar la complejidad del ETL, ya que requerirá estrategias de particionamiento dinámico.
+- Migrar a un sistema distribuido de almacenamiento como **AWS S3 con Glue** o **Databricks**. Sin embargo, esto implicará costos adicionales en infraestructura y mantenimiento.
+
+---
+## **2. API y Latencia**
+
+  La API actual basada en **FastAPI** puede experimentar problemas de latencia al aumentar la cantidad de solicitudes concurrentes. Los resultados actuales dependen de cálculos preprocesados, lo que puede limitar la capacidad de responder a solicitudes dinámicas.
+
+### **Posibles soluciones:** 
+- Migrar la API a un entorno con balanceo de carga y contenedores orquestados con **Kubernetes** o **AWS ECS**. Implementar mecanismos de cacheo (como **Redis**) para reducir la carga de consultas recurrentes.
+
+---
 
 ## Autor
 **Daniel Grass - dgrassg@gmail.com - +57 3007024862**
