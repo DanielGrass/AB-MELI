@@ -10,21 +10,21 @@ import jax
 import arviz as az
 import numpy as np
 import requests
-from deltalake import DeltaTable
-import os
-from dotenv import load_dotenv
+# from deltalake import DeltaTable
+# import os
+# from dotenv import load_dotenv
 
-# Cargar variables de entorno desde .env
-load_dotenv()
+# # Cargar variables de entorno desde .env
+# load_dotenv()
 
-# Configurar opciones de almacenamiento usando las variables de entorno
-storage_options = {
-    "key": os.getenv("AWS_ACCESS_KEY_ID"),
-    "secret": os.getenv("AWS_SECRET_ACCESS_KEY"),
-    "client_kwargs": {
-        "region_name": os.getenv("AWS_DEFAULT_REGION")
-    }
-}
+# # Configurar opciones de almacenamiento usando las variables de entorno
+# storage_options = {
+#     "key": os.getenv("AWS_ACCESS_KEY_ID"),
+#     "secret": os.getenv("AWS_SECRET_ACCESS_KEY"),
+#     "client_kwargs": {
+#         "region_name": os.getenv("AWS_DEFAULT_REGION")
+#     }
+# }
 
 
 # Configuración de la página
@@ -37,36 +37,37 @@ logo_url = "https://http2.mlstatic.com/frontend-assets/ml-web-navigation/ui-navi
 if 'selected_main' not in st.session_state:
     st.session_state.selected_main = None
 
-# Rutas a las tablas Delta en S3
-bucket_name = "abtest-meli"
-bronze_path = f"s3://{bucket_name}/delta-table-bronze/"
-silver_path = f"s3://{bucket_name}/delta-table-silver-v1/"
-gold_aggregate_path = f"s3://{bucket_name}/delta-table-gold-aggregate/"
-gold_tunnel_path = f"s3://{bucket_name}/delta-table-gold-tunnel-v1/"
+# # Rutas a las tablas Delta en S3
+# bucket_name = "abtest-meli"
+# bronze_path = f"s3://{bucket_name}/delta-table-bronze/"
+# silver_path = f"s3://{bucket_name}/delta-table-silver-v1/"
+# gold_aggregate_path = f"s3://{bucket_name}/delta-table-gold-aggregate/"
+# gold_tunnel_path = f"s3://{bucket_name}/delta-table-gold-tunnel-v1/"
+
 
 # Función para cargar datos con deltalake
 @st.cache_data
 def load_bronze_data():
     st.info("Cargando datos de Bronze...")
-    df = pd.read_parquet(bronze_path, storage_options=storage_options)
-    return df.head(100)
+    df = pd.read_parquet("bronze")
+    return df
 
 @st.cache_data
 def load_silver_data():
     st.info("Cargando datos de Silver...")
-    df = pd.read_parquet(silver_path, storage_options=storage_options)
-    return df.head(100)
+    df = pd.read_parquet("silver")
+    return df
 
 @st.cache_data
 def load_gold_data():
     st.info("Cargando datos de Gold Aggregate...")
-    df = pd.read_parquet(gold_aggregate_path, storage_options=storage_options)
+    df = pd.read_parquet("gold_aggregated")
     return df
 
 @st.cache_data
 def load_tunnel_data():
     st.info("Cargando datos de Gold Tunnel...")
-    df = pd.read_parquet(gold_tunnel_path, storage_options=storage_options)
+    df = pd.read_parquet("gold_tunnel")
     return df
 
 

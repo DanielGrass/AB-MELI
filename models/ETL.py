@@ -74,6 +74,7 @@ invalid_experiments.show()
 df_cleaned.orderBy("user_id", "timestamp").write.format("delta").mode("overwrite").save(delta_table_bronze_path)
 print(f"Delta Table guardada en: {delta_table_bronze_path}")
 
+df_cleaned.orderBy("user_id", "timestamp").write.format("overwrite").parquet("bronze")
 
 ########################################
 ###### 2. Crear tabla silver (transform data)
@@ -143,7 +144,7 @@ df_result.filter(col("user_id") == 1876).show(n=1000,truncate=False) #Usuario co
 
 print(f"Delta Table guardada en: {delta_table_silver_path}")
 
-
+df_result.write.format("overwrite").parquet("silver")
 ########################################
 ###### 3. Crear tabla Gold (resultados agregados)
 ########################################
@@ -169,10 +170,11 @@ df_aggregated.orderBy("day", "experiment_name").show(n=1000, truncate=False)
 
 # Guardar la tabla Gold - Agregado
 df_aggregated.write.format("delta").mode("overwrite").save(delta_table_gold_aggregate_path)
-csv_file_path = "df_aggregated.csv"
-df_aggregated_pandas = pd.DataFrame(df_aggregated.collect(), columns=[field.name for field in df_aggregated.schema.fields])
-df_aggregated_pandas.to_csv(csv_file_path, index=False)
+# csv_file_path = "df_aggregated.csv"
+# df_aggregated_pandas = pd.DataFrame(df_aggregated.collect(), columns=[field.name for field in df_aggregated.schema.fields])
+# df_aggregated_pandas.to_csv(csv_file_path, index=False)
 
+df_aggregated.write.format("overwrite").parquet("gold_aggregated")
 # Agrupar por día, evento, experimento y variante, y calcular métricas
 df_tunnel = df_delta_silver.groupBy("day", "event_name", "experiment_name", "variant_id").agg(
     countDistinct("user_id").alias("users"),  # Número de usuarios distintos
@@ -184,3 +186,4 @@ df_tunnel.orderBy("day", "experiment_name", "event_name").show(n=1000, truncate=
 
 # Guardar la tabla Gold - tunnel
 df_tunnel.write.format("delta").mode("overwrite").save(delta_table_gold_tunnel_path)
+df_tunnel.write.format("overwrite").parquet("gold_tunnel")
