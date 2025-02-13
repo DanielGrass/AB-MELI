@@ -10,6 +10,8 @@ import jax
 import arviz as az
 import numpy as np
 import requests
+
+#EJEMPLO HOY
 # from deltalake import DeltaTable
 # import os
 # from dotenv import load_dotenv
